@@ -71,7 +71,7 @@ const App = () => {
       imageStyle={{
         width: '100%',
         height: '100%',
-        resizeMode: 'cover',
+        resizeMode: 'stretch',
       }}>
       <SafeAreaView style={styles.container}>
         <Text style={styles.textdisplay}>

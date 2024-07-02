@@ -7,18 +7,35 @@ import {
   View,
   TouchableOpacity,
   ImageBackground,
+  Platform,
+  PermissionsAndroid,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {images} from '../../assets/image/const';
 import {createClient} from '@supabase/supabase-js';
 import 'react-native-url-polyfill/auto';
+import Geolocation from 'react-native-geolocation-service';
+import axios from 'axios';
+import {Weather} from './weather';
+import moment from 'moment';
+import {PERMISSIONS, request} from 'react-native-permissions';
 
 const HomeScreen = () => {
   const navigation = useNavigation();
   const [temperature, setTemperature] = useState('');
   const [displayText, setDisplayText] = useState('');
   const [temperatureToOpenFan, setTemperatureToOpenFan] = useState('');
-
+  const [position, setPosition] = useState<Geolocation.GeoPosition>();
+  const [weather, setWeather] = useState<
+    Array<{
+      time: string;
+      temperature: number;
+    }>
+  >();
+  const [currentWeather, setCurrentWeather] = useState<{
+    time: string;
+    temperature: number;
+  }>();
   const supabaseUrl = 'https://atamzgfzgyynoqqdnbup.supabase.co';
   const supabaseKey =
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF0YW16Z2Z6Z3l5bm9xcWRuYnVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTkyOTg0NDEsImV4cCI6MjAzNDg3NDQ0MX0.Ner2Wvuop0mILVgNkhI_Q0_XNgzC32pKRTkAhQlWA2I';
@@ -78,6 +95,127 @@ const HomeScreen = () => {
     });
   };
 
+  useEffect(() => {
+    getLocation();
+  }, []);
+  useEffect(() => {
+    handleCalculateCurrentTemperature();
+  }, [weather]);
+
+  const getWeather = async (lat: number, long: number) => {
+    const params = {
+      latitude: lat,
+      longitude: long,
+      hourly: 'relative_humidity_2m',
+      forecast_days: 1,
+    };
+    const url = 'https://api.open-meteo.com/v1/forecast';
+    try {
+      const responses = await axios.get(url, {
+        params,
+      });
+      const res = responses.data as Weather;
+      const data: Array<{
+        time: string;
+        temperature: number;
+      }> = [];
+      res.hourly.time.forEach((item, index) => {
+        data.push({
+          time: moment(item).format('HH:mm'),
+          temperature: res.hourly.relative_humidity_2m[index],
+        });
+      });
+      return data;
+    } catch (error) {
+      console.table('err', error);
+    }
+  };
+
+  const handleCalculateCurrentTemperature = async () => {
+    let currentHours = moment().hours();
+    let currentMinutes = moment().minutes();
+    const hours =
+      currentMinutes > 30 ? `${currentHours + 1}:00` : `${currentHours}:00`;
+    const currentTemp = weather?.find(item => item.time === hours);
+    if (!!currentTemp) {
+      setDisplayText(currentTemp?.temperature.toString() + '%');
+      setCurrentWeather(currentTemp as any);
+    }
+  };
+  const requestLocationPermission = async () => {
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        {
+          title: 'Geolocation Permission',
+          message: 'Can we access your location?',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'OK',
+        },
+      );
+      console.log('granted', granted);
+      if (granted === 'granted') {
+        console.log('You can use Geolocation');
+        return true;
+      } else {
+        console.log('You cannot use Geolocation');
+        return false;
+      }
+    } catch (err) {
+      return false;
+    }
+  };
+
+  const getLocation = async () => {
+    if (Platform.OS === 'android') {
+      const granted = await requestLocationPermission();
+    } else {
+      request(PERMISSIONS.IOS.LOCATION_ALWAYS).then(result => {
+        console.log('result', result);
+      });
+    }
+
+    Geolocation.getCurrentPosition(
+      async position => {
+        console.log(position);
+        setPosition(position);
+        const weather = await getWeather(
+          position.coords.latitude,
+          position.coords.longitude,
+        );
+        console.log('weather', weather);
+        setWeather(weather);
+      },
+      error => {
+        console.log(error.code, error.message);
+      },
+      {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
+    );
+  };
+
+  const handleGotoChart = () => {
+    const chartData: Array<any> = [];
+    weather?.forEach((item, index) => {
+      if (
+        index === 0 ||
+        index === 4 ||
+        index === 8 ||
+        index === 12 ||
+        index === 16 ||
+        index === 20 ||
+        index === 23
+      ) {
+        chartData.push(item);
+      }
+    });
+    navigation.navigate('Chart', {
+      currentWeather: currentWeather,
+      weather: weather,
+      chartData: chartData,
+    });
+  };
+
   return (
     <ImageBackground
       source={require('../../assets/image/Home.png')}
@@ -110,6 +248,9 @@ const HomeScreen = () => {
               </TouchableOpacity>
               <TouchableOpacity style={styles.button} onPress={goToFanScreen}>
                 <Text style={styles.buttonText}>Thiết bị</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.button} onPress={handleGotoChart}>
+                <Text style={styles.buttonText}>Chart</Text>
               </TouchableOpacity>
             </View>
           </View>
