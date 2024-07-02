@@ -235,17 +235,17 @@ const HomeScreen = () => {
             <Text style={styles.circleText}>{displayText || '0%'}</Text>
           </View>
           <View style={styles.inputContainer}>
-            <TextInput
+            {/* <TextInput
               style={styles.input}
               onChangeText={handleTemperatureInput}
               value={temperature}
               placeholder="Nhập độ ẩm %"
               keyboardType="numeric"
-            />
+            /> */}
             <View style={{gap: 10}}>
-              <TouchableOpacity style={styles.button} onPress={handleSubmit}>
+              {/* <TouchableOpacity style={styles.button} onPress={handleSubmit}>
                 <Text style={styles.buttonText}>Nhập dữ liệu</Text>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
               <TouchableOpacity style={styles.button} onPress={goToFanScreen}>
                 <Text style={styles.buttonText}>Thiết bị</Text>
               </TouchableOpacity>
